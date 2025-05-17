@@ -1,35 +1,96 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState, useEffect } from "react";
+import {
+  Button,
+  Heading,
+  Flex,
+  View,
+  Grid,
+  Divider,
+} from "@aws-amplify/ui-react";
+import { useAuthenticator } from "@aws-amplify/ui-react";
+import { Amplify } from "aws-amplify";
+import { getCurrentUser } from "aws-amplify/auth";
+import "@aws-amplify/ui-react/styles.css";
+import { generateClient } from "aws-amplify/data";
+import outputs from "../amplify_outputs.json";
+/**
+ * @type {import('aws-amplify/data').Client<import('../amplify/data/resource').Schema>}
+ */
 
-function App() {
-  const [count, setCount] = useState(0)
+Amplify.configure(outputs);
+const client = generateClient({
+  authMode: "userPool",
+});
+
+export default function App() {
+  const [userprofiles, setUserProfiles] = useState([]);
+  const [currentUserEmail, setCurrentUserEmail] = useState("");
+  const { signOut } = useAuthenticator();
+
+  useEffect(() => {
+    fetchUserProfile();
+    fetchCurrentUser();
+  }, []);
+
+  async function fetchUserProfile() {
+    const { data: profiles } = await client.models.UserProfile.list();
+    setUserProfiles(profiles);
+  }
+  
+  async function fetchCurrentUser() {
+    try {
+      const user = await getCurrentUser();
+      console.log("Current user data:", user);
+      setCurrentUserEmail(user.signInDetails?.loginId || "");
+    } catch (error) {
+      console.error("Error fetching current user:", error);
+    }
+  }
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+    <Flex
+      className="App"
+      justifyContent="center"
+      alignItems="center"
+      direction="column"
+      width="70%"
+      margin="0 auto"
+    >
+      <Heading level={1}>My Profile</Heading>
 
-export default App
+      <Divider />
+
+      <Grid
+        margin="3rem 0"
+        autoFlow="column"
+        justifyContent="center"
+        gap="2rem"
+        alignContent="center"
+      >
+        {userprofiles.map((userprofile) => (
+          <Flex
+            key={userprofile.id || userprofile.email}
+            direction="column"
+            justifyContent="center"
+            alignItems="center"
+            gap="2rem"
+            border="1px solid #ccc"
+            padding="2rem"
+            borderRadius="5%"
+            className="box"
+          >
+            <View>
+              <Heading level="3">{userprofile.email}</Heading>
+            </View>
+          </Flex>
+        ))}
+      </Grid>
+      {currentUserEmail && (
+        <Heading level={3} padding="1rem 0">
+          {currentUserEmail}
+        </Heading>
+      )}
+      <Button onClick={signOut}>Sign Out</Button>
+    </Flex>
+  );
+}
